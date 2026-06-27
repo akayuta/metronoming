@@ -7,18 +7,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            python3 python3-pip \
+            openjdk-17-jdk-headless \
+            git wget unzip
+      - name: Install Python dependencies
         run: |
           pip install buildozer cython
       - name: Build APK
-        run: |
-          cd $GITHUB_WORKSPACE
-          buildozer android debug
+        run: buildozer android debug
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
