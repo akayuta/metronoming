@@ -1,17 +1,13 @@
 import io
+import math
+import struct
 import subprocess
 import tempfile
 import wave
 from pathlib import Path
 
-import numpy as np
-
 _RATE = 44100
 _tmp_dir = Path(tempfile.mkdtemp(prefix="metronoming-"))
-
-# Frequency analysis of a real mechanical metronome (YouTube: _0ADzsPg4Jc):
-#   dominant: 3390 Hz, secondaries: 2660, 1890, 1690, 1040 Hz
-#   attack peak at 5ms, plateau at 15-20ms (body ring), silent by 50ms
 
 def _make_wav(freq: int, dur: float, vol: float, label: str) -> Path:
     """Generate click sound with given frequency and duration.
@@ -23,45 +19,44 @@ def _make_wav(freq: int, dur: float, vol: float, label: str) -> Path:
         label: Label for filename (e.g., 'bell' or 'click')
     """
     n = int(_RATE * dur)
-    t = np.linspace(0, dur, n, endpoint=False)
-    rng = np.random.default_rng(42)
+    samples = []
 
-    # Attack envelope: 3ms rise
-    attack = np.minimum(t / 0.003, 1.0)
+    for i in range(n):
+        t = i / _RATE
 
-    # Noise component (impacts)
-    noise = rng.standard_normal(n) * np.exp(-t * 300)
+        # Attack envelope: 3ms rise
+        attack = min(t / 0.003, 1.0)
 
-    # Main tone: dominant frequency
-    tone = np.sin(2 * np.pi * freq * t)
+        # Decay
+        if "bell" in label:
+            decay = math.exp(-t * 200)
+        else:
+            decay = math.exp(-t * 100)
 
-    # Harmonics for richer sound
-    harmonics = (
-        0.5 * np.sin(2 * np.pi * freq * 2 * t)
-        + 0.3 * np.sin(2 * np.pi * freq * 3 * t)
-    )
+        # Main tone
+        tone = math.sin(2 * math.pi * freq * t)
 
-    # Combine: more noise for click, more tone for bell
-    if "bell" in label:
-        # Bell: pure tone with harmonics, quick decay
-        wave_data = (0.1 * noise + 0.7 * tone + 0.2 * harmonics) * attack * np.exp(-t * 200)
-    else:
-        # Click: woody, natural decay
-        wave_data = (0.3 * noise + 0.5 * tone + 0.2 * harmonics) * attack * np.exp(-t * 100)
+        # Harmonics
+        harm2 = 0.5 * math.sin(2 * math.pi * freq * 2 * t)
+        harm3 = 0.3 * math.sin(2 * math.pi * freq * 3 * t)
 
-    peak = np.max(np.abs(wave_data))
-    if peak > 0:
-        wave_data = wave_data / peak * vol
+        # Combine
+        if "bell" in label:
+            sample = (0.7 * tone + 0.2 * (harm2 + harm3)) * attack * decay
+        else:
+            sample = (0.5 * tone + 0.2 * (harm2 + harm3)) * attack * decay
 
-    samples = (wave_data * 32767).astype(np.int16)
+        # Apply volume and convert to int16
+        sample = int(sample * vol * 32767)
+        sample = max(-32768, min(32767, sample))
+        samples.append(sample)
+
     path = _tmp_dir / f"click_{label}.wav"
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wf:
+    with wave.open(str(path), "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(_RATE)
-        wf.writeframes(samples.tobytes())
-    path.write_bytes(buf.getvalue())
+        wf.writeframes(struct.pack('<' + 'h' * len(samples), *samples))
     return path
 
 
