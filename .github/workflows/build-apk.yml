@@ -8,18 +8,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:latest
+      image: ubuntu:22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install system dependencies
         run: |
           apt-get update
           apt-get install -y \
-            python3 python3-pip \
+            python3 python3-pip python3-dev \
+            build-essential \
             openjdk-17-jdk-headless \
-            git wget unzip
+            git wget unzip \
+            libssl-dev libffi-dev
       - name: Install Python dependencies
         run: |
+          pip install --upgrade pip
           pip install buildozer cython
       - name: Build APK
         run: buildozer android debug
