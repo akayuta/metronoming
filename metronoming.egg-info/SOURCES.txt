@@ -1,0 +1,14 @@
+pyproject.toml
+metronoming/__init__.py
+metronoming/__main__.py
+metronoming/audio.py
+metronoming/config.py
+metronoming/main.py
+metronoming/metro.py
+metronoming/tui.py
+metronoming.egg-info/PKG-INFO
+metronoming.egg-info/SOURCES.txt
+metronoming.egg-info/dependency_links.txt
+metronoming.egg-info/entry_points.txt
+metronoming.egg-info/requires.txt
+metronoming.egg-info/top_level.txt
